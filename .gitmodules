@@ -1,0 +1,3 @@
+[submodule "src/ts/lib/manifold"]
+	path = src/ts/lib/manifold
+	url = https://github.com/manifoldmarkets/manifold

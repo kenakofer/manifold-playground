@@ -1,3 +1,6 @@
+import { getCpmmProbability } from './lib/manifold/common/src/calculate-cpmm';
+
+
 let submitFunction = function(event: JQuery.KeyUpEvent) {
     if (event.keyCode === 13) {
         const command: string = $(this).val() as string;
