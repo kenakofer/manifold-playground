@@ -2,10 +2,12 @@
     "compilerOptions": {
         "outDir": "./docs/js",
         "sourceMap": true,
-        "noImplicitAny": true,
-        "module": "commonjs",
-        "target": "es5",
-        "allowJs": true
+        "noImplicitReturns": true,
+        "module": "es2022",
+        "target": "es2022",
+        "allowJs": true,
+        "moduleResolution": "node",
+        "esModuleInterop": true
     },
     "include": [
         "./src/**/*"
