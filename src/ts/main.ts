@@ -1,8 +1,11 @@
-import { getCpmmProbability } from './lib/manifold/common/src/calculate-cpmm';
+import { CpmmState, getCpmmProbability } from './lib/manifold/common/src/calculate-cpmm';
 import { getNewContract } from './lib/manifold/common/src/new-contract';
 import { ContractDictionary } from './lib/manifold/common/src/playground/contracts';
-import { Contract } from './lib/manifold/common/src/contract';
+import { BinaryContract, CPMM, CPMMBinaryContract, Contract } from './lib/manifold/common/src/contract';
 import { User } from './lib/manifold/common/src/user';
+import { getDisplayProbability } from './lib/manifold/common/src/calculate';
+import { computeCpmmBet, getBinaryCpmmBetInfo } from './lib/manifold/common/src/new-bet';
+import { LimitBet } from './lib/manifold/common/src/bet';
 
 
 let submitFunction = function(event: JQuery.KeyUpEvent) {
@@ -34,9 +37,17 @@ let submitFunction = function(event: JQuery.KeyUpEvent) {
 // and display the output in div.output-container
 $('.command-input').on('keyup', submitFunction);
 
-let contract_dict: ContractDictionary = {};
-// Test user
-let user: User = {
+declare global {
+  interface Window {
+    market: CPMMBinaryContract;
+    contract_dict: ContractDictionary;
+    users: User[];
+  }
+}
+
+window.contract_dict = {} as ContractDictionary
+window.market = undefined as BinaryContract & CPMM
+window.users = [{
     id: '1',
     createdTime: 0,
     name: 'Alice',
@@ -58,6 +69,15 @@ let user: User = {
     },
     nextLoanCached: 0,
     streakForgiveness: 0
+}] as User[]
+
+function getBalanceByUserId(users: User[]) {
+    // For each user in users, add an entry to the balanceByUserId dictionary
+    let balanceByUserId: { [key: string]: number } = {};
+    for (let user of users) {
+        balanceByUserId[user.id] = user.balance;
+    }
+    return balanceByUserId;
 }
 
 
@@ -73,14 +93,14 @@ function executeCommand(command: string): string {
     // CREATE command
     if (commandName === 'CREATE') {
         // Hard code the arguments for now
-        const contract = getNewContract(
+        window.market = getNewContract(
             '0x123', //id
             'changeme', //slug
-            user,
+            window.users[0],
             'Will we succeed?', //question
             'BINARY', //outcomeType
             'This is a description', //description
-            0.5, //initialProb
+            50, //initialProb, out of 100
             10, //ante
             undefined, //closeTime
             'public', //visibility
@@ -93,9 +113,39 @@ function executeCommand(command: string): string {
             undefined, //shouldAnswersSumToOne
             undefined, //loverUserId1
             undefined //loverUserId2
+        ) as CPMMBinaryContract
+
+        return `Created contract ${window.market.id} at probability ${getDisplayProbability(window.market)}`;
+    }
+    if (commandName === 'BUY') {
+        // Hard code the arguments for now
+        let betAmount = parseInt(args[0]) as number;
+        let outcome = args[1].toUpperCase() as 'YES' | 'NO';
+        // TODO should we use:
+        //  getBinaryCpmmBetInfo
+        //   calls computeCpmmBet
+        //   calls computeFills
+        //   calls computeFill
+        //   calls calculateCpmmPurchase
+        //
+        // or should we call one of the ones lower in the chain? I wish I could
+        // find how Manifold updates their db with new bets.
+        let result = getBinaryCpmmBetInfo(
+            window.market,
+            // Upper case outcome
+            outcome,
+            betAmount as number,
+            undefined,
+            [] as LimitBet[],
+            getBalanceByUserId(window.users),
+            undefined,
         );
 
-        return `Created contract ${contract.id}`;
+        // TODO this doesn't cover things like liquidity and bonuses. Adapt on-create-bets.ts in the backend to actually capture all the nuanced logic
+        window.market.pool = result.newPool;
+        window.market.p = result.newP;
+
+        return `Bought ${betAmount} for outcome ${outcome}. Result: ${JSON.stringify(result)}`;
     }
     return `Unknown command ${commandName}`;
 }
