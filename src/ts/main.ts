@@ -7,14 +7,16 @@ import { getDisplayProbability } from './lib/manifold/common/src/calculate';
 import { computeCpmmBet, getBinaryCpmmBetInfo } from './lib/manifold/common/src/new-bet';
 import { LimitBet } from './lib/manifold/common/src/bet';
 import { onCreateBet } from './lib/manifold/common/src/trigger/on-create-bet';
+import jsonview from '@pgrabovets/json-view';
 
 
 let submitFunction = function(event: JQuery.KeyUpEvent) {
     if (event.keyCode === 13) {
         const command: string = $(this).val() as string;
-        const output: string = executeCommand(command);
-        // Replace the output
-        $(this).next().html(output);
+        const output = executeCommand(command);
+        const tree = jsonview.create(JSON.stringify(output));
+        jsonview.render(tree, $(this).siblings('.output-container')[0]);
+
 
         // Create a new repl-container below, but only if we are the last repl-container
         if ($(this).parent().is(':last-child')) {
@@ -112,7 +114,7 @@ function getBalanceByUserId(users: User[]) {
 
 
 
-function executeCommand(command: string): string {
+function executeCommand(command: string): any {
     // Split into tokens
     const tokens: string[] = command.split(' ');
     // The first token is the command
@@ -131,7 +133,7 @@ function executeCommand(command: string): string {
             'BINARY', //outcomeType
             'This is a description', //description
             50, //initialProb, out of 100
-            10, //ante
+            50, //ante, on manifold I think this is the 50 you pay for market creation. The pool in a binary market will be { YES: ante, NO: ante }
             undefined, //closeTime
             'public', //visibility
             false, //isTwitchContract
@@ -145,7 +147,7 @@ function executeCommand(command: string): string {
             undefined //loverUserId2
         ) as CPMMBinaryContract
 
-        return `Created contract ${window.market.id} at probability ${getDisplayProbability(window.market)}`;
+        return window.market;
     }
     if (commandName === 'BUY') {
         // Hard code the arguments for now
@@ -183,7 +185,7 @@ function executeCommand(command: string): string {
         window.market.p = window.result.newP;
         window.market.prob = window.result.newBet.probAfter;
 
-        return `Bought ${betAmount} for outcome ${outcome}. Result: ${JSON.stringify(window.result)}`;
+        return window.result;
     }
     return `Unknown command ${commandName}`;
 }

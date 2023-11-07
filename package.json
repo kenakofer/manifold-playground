@@ -15,6 +15,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
+    "@pgrabovets/json-view": "^2.7.5",
     "@types/lodash": "^4.14.200",
     "@types/node": "^20.8.10",
     "ts-loader": "^9.5.0",
