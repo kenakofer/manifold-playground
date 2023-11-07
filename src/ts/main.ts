@@ -6,6 +6,7 @@ import { User } from './lib/manifold/common/src/user';
 import { getDisplayProbability } from './lib/manifold/common/src/calculate';
 import { computeCpmmBet, getBinaryCpmmBetInfo } from './lib/manifold/common/src/new-bet';
 import { LimitBet } from './lib/manifold/common/src/bet';
+import { onCreateBet } from './lib/manifold/common/src/trigger/on-create-bet';
 
 
 let submitFunction = function(event: JQuery.KeyUpEvent) {
@@ -42,16 +43,18 @@ declare global {
     market: CPMMBinaryContract;
     contract_dict: ContractDictionary;
     users: User[];
+    result: any;
   }
 }
 
+window.result = {} as any
 window.contract_dict = {} as ContractDictionary
 window.market = undefined as BinaryContract & CPMM
-window.users = [{
-    id: '1',
+const user_default_params = {
+    id: '0',
     createdTime: 0,
-    name: 'Alice',
-    username: 'alice',
+    name: 'Andrew',
+    username: 'andrew',
     avatarUrl: '',
     balance: 1000,
     totalDeposits: 0,
@@ -69,7 +72,34 @@ window.users = [{
     },
     nextLoanCached: 0,
     streakForgiveness: 0
-}] as User[]
+}
+window.users = [
+    user_default_params,
+    {
+    ...user_default_params,
+    id: '1',
+    name: 'BTE',
+    username: 'bte',
+    },
+    {
+    ...user_default_params,
+    id: '2',
+    name: 'Conflux',
+    username: 'conflux',
+    },
+    {
+    ...user_default_params,
+    id: '3',
+    name: 'Destiny',
+    username: 'destiny',
+    },
+    {
+    ...user_default_params,
+    id: '4',
+    name: 'Eliza',
+    username: 'eliza',
+    },
+] as User[]
 
 function getBalanceByUserId(users: User[]) {
     // For each user in users, add an entry to the balanceByUserId dictionary
@@ -130,7 +160,10 @@ function executeCommand(command: string): string {
         //
         // or should we call one of the ones lower in the chain? I wish I could
         // find how Manifold updates their db with new bets.
-        let result = getBinaryCpmmBetInfo(
+
+        // IIUC, getBinaryCpmmBetInfo does all the user-agnostic math about the bet.
+        let bettor = window.users[1];
+        window.result = getBinaryCpmmBetInfo(
             window.market,
             // Upper case outcome
             outcome,
@@ -138,14 +171,19 @@ function executeCommand(command: string): string {
             undefined,
             [] as LimitBet[],
             getBalanceByUserId(window.users),
+            bettor,
             undefined,
         );
 
-        // TODO this doesn't cover things like liquidity and bonuses. Adapt on-create-bets.ts in the backend to actually capture all the nuanced logic
-        window.market.pool = result.newPool;
-        window.market.p = result.newP;
+        // This sets new liquidity and subsidy on the window.market (because of code I added in on-create-bet.ts)
+        onCreateBet(window.result.newBet, window.market, bettor);
 
-        return `Bought ${betAmount} for outcome ${outcome}. Result: ${JSON.stringify(result)}`;
+        // TODO where in manifold's code does it do this update (presumably to the DB, but still)?
+        window.market.pool = window.result.newPool;
+        window.market.p = window.result.newP;
+        window.market.prob = window.result.newBet.probAfter;
+
+        return `Bought ${betAmount} for outcome ${outcome}. Result: ${JSON.stringify(window.result)}`;
     }
     return `Unknown command ${commandName}`;
 }
