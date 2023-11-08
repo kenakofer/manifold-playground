@@ -8,6 +8,7 @@ import { computeCpmmBet, getBinaryCpmmBetInfo } from './lib/manifold/common/src/
 import { LimitBet } from './lib/manifold/common/src/bet';
 import { onCreateBet } from './lib/manifold/common/src/trigger/on-create-bet';
 import jsonview from '@pgrabovets/json-view';
+import { NestedLogger } from './lib/manifold/common/src/playground/nested-logger';
 
 
 let submitFunction = function(event: JQuery.KeyUpEvent) {
@@ -16,6 +17,9 @@ let submitFunction = function(event: JQuery.KeyUpEvent) {
         const output = executeCommand(command);
         const tree = jsonview.create(JSON.stringify(output));
         jsonview.render(tree, $(this).siblings('.output-container')[0]);
+        jsonview.expand(tree);
+        // Hide the useless root element
+        $(this).siblings('.output-container').children('.json-container').children().first().addClass('hidden');
 
 
         // Create a new repl-container below, but only if we are the last repl-container
@@ -46,8 +50,11 @@ declare global {
     contract_dict: ContractDictionary;
     users: User[];
     result: any;
+    logger: NestedLogger;
   }
 }
+
+window.logger = new NestedLogger();
 
 window.result = {} as any
 window.contract_dict = {} as ContractDictionary
