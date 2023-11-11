@@ -9,13 +9,15 @@ import { LimitBet } from './lib/manifold/common/src/bet';
 import { onCreateBet } from './lib/manifold/common/src/trigger/on-create-bet';
 import jsonview from '@pgrabovets/json-view';
 import { NestedLogger } from './lib/manifold/common/src/playground/nested-logger';
+import { PlaygroundState } from './lib/manifold/common/src/playground/playground-state';
 
 
 let submitFunction = function(event: JQuery.KeyUpEvent) {
     if (event.keyCode === 13) {
         const command: string = $(this).val() as string;
         const output = executeCommand(command);
-        const tree = jsonview.create(JSON.stringify(output));
+        window.logger.log("Playground command result", output);
+        const tree = jsonview.create(JSON.stringify(window.logger.getLog()));
         jsonview.render(tree, $(this).siblings('.output-container')[0]);
         jsonview.expand(tree);
         // Hide the useless root element
@@ -46,69 +48,13 @@ $('.command-input').on('keyup', submitFunction);
 
 declare global {
   interface Window {
-    market: CPMMBinaryContract;
-    contract_dict: ContractDictionary;
-    users: User[];
-    result: any;
     logger: NestedLogger;
+    pState: PlaygroundState;
   }
 }
 
 window.logger = new NestedLogger();
-
-window.result = {} as any
-window.contract_dict = {} as ContractDictionary
-window.market = undefined as BinaryContract & CPMM
-const user_default_params = {
-    id: '0',
-    createdTime: 0,
-    name: 'Andrew',
-    username: 'andrew',
-    avatarUrl: '',
-    balance: 1000,
-    totalDeposits: 0,
-    profitCached: {
-        daily: 0,
-        weekly: 0,
-        monthly: 0,
-        allTime: 0
-    },
-    creatorTraders: {
-        daily: 0,
-        weekly: 0,
-        monthly: 0,
-        allTime: 0
-    },
-    nextLoanCached: 0,
-    streakForgiveness: 0
-}
-window.users = [
-    user_default_params,
-    {
-    ...user_default_params,
-    id: '1',
-    name: 'BTE',
-    username: 'bte',
-    },
-    {
-    ...user_default_params,
-    id: '2',
-    name: 'Conflux',
-    username: 'conflux',
-    },
-    {
-    ...user_default_params,
-    id: '3',
-    name: 'Destiny',
-    username: 'destiny',
-    },
-    {
-    ...user_default_params,
-    id: '4',
-    name: 'Eliza',
-    username: 'eliza',
-    },
-] as User[]
+window.pState = new PlaygroundState();
 
 function getBalanceByUserId(users: User[]) {
     // For each user in users, add an entry to the balanceByUserId dictionary
@@ -131,68 +77,28 @@ function executeCommand(command: string): any {
 
     // CREATE command
     if (commandName === 'CREATE') {
-        // Hard code the arguments for now
-        window.market = getNewContract(
-            '0x123', //id
-            'changeme', //slug
-            window.users[0],
-            'Will we succeed?', //question
-            'BINARY', //outcomeType
-            'This is a description', //description
-            50, //initialProb, out of 100
-            50, //ante, on manifold I think this is the 50 you pay for market creation. The pool in a binary market will be { YES: ante, NO: ante }
-            undefined, //closeTime
-            'public', //visibility
-            false, //isTwitchContract
-            undefined, //min
-            undefined, //max
-            undefined, //isLogScale
-            undefined, //answers
-            undefined, //addAnswersMode
-            undefined, //shouldAnswersSumToOne
-            undefined, //loverUserId1
-            undefined //loverUserId2
-        ) as CPMMBinaryContract
-
-        return window.market;
+        // Use the defaults for now
+        let market;
+        try {
+            market = window.pState.addContractWithDefaultProps()
+        } catch (e) {
+            console.log("Error creating contract");
+            window.logger.log(e.message, e.stack.split('\n'));
+            return e;
+        }
+        return market;
     }
     if (commandName === 'BUY') {
-        // Hard code the arguments for now
-        let betAmount = parseInt(args[0]) as number;
-        let outcome = args[1].toUpperCase() as 'YES' | 'NO';
-        // TODO should we use:
-        //  getBinaryCpmmBetInfo
-        //   calls computeCpmmBet
-        //   calls computeFills
-        //   calls computeFill
-        //   calls calculateCpmmPurchase
-        //
-        // or should we call one of the ones lower in the chain? I wish I could
-        // find how Manifold updates their db with new bets.
 
-        // IIUC, getBinaryCpmmBetInfo does all the user-agnostic math about the bet.
-        let bettor = window.users[1];
-        window.result = getBinaryCpmmBetInfo(
-            window.market,
-            // Upper case outcome
-            outcome,
-            betAmount as number,
-            undefined,
-            [] as LimitBet[],
-            getBalanceByUserId(window.users),
-            bettor,
-            undefined,
-        );
+        // // This sets new liquidity and subsidy on the window.market (because of code I added in on-create-bet.ts)
+        // onCreateBet(window.result.newBet, window.market, bettor);
 
-        // This sets new liquidity and subsidy on the window.market (because of code I added in on-create-bet.ts)
-        onCreateBet(window.result.newBet, window.market, bettor);
+        // // TODO where in manifold's code does it do this update (presumably to the DB, but still)?
+        // window.market.pool = window.result.newPool;
+        // window.market.p = window.result.newP;
+        // window.market.prob = window.result.newBet.probAfter;
 
-        // TODO where in manifold's code does it do this update (presumably to the DB, but still)?
-        window.market.pool = window.result.newPool;
-        window.market.p = window.result.newP;
-        window.market.prob = window.result.newBet.probAfter;
-
-        return window.result;
+        // return window.result;
     }
     return `Unknown command ${commandName}`;
 }
