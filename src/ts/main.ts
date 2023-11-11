@@ -1,16 +1,18 @@
-import { CpmmState, getCpmmProbability } from './lib/manifold/common/src/calculate-cpmm';
-import { getNewContract } from './lib/manifold/common/src/new-contract';
-import { ContractDictionary } from './lib/manifold/common/src/playground/contracts';
-import { BinaryContract, CPMM, CPMMBinaryContract, Contract } from './lib/manifold/common/src/contract';
 import { User } from './lib/manifold/common/src/user';
-import { getDisplayProbability } from './lib/manifold/common/src/calculate';
-import { computeCpmmBet, getBinaryCpmmBetInfo } from './lib/manifold/common/src/new-bet';
-import { LimitBet } from './lib/manifold/common/src/bet';
-import { onCreateBet } from './lib/manifold/common/src/trigger/on-create-bet';
 import jsonview from '@pgrabovets/json-view';
 import { NestedLogger } from './lib/manifold/common/src/playground/nested-logger';
 import { PlaygroundState } from './lib/manifold/common/src/playground/playground-state';
 
+let collapseWideTrees = function(tree: jsonview.TreeNode, width: number = 3) {
+    for (let i = 0; i < tree.children.length; i++) {
+        const child = tree.children[i];
+        if (child.children.length >= width) {
+            jsonview.collapse(child);
+        } else {
+            collapseWideTrees(child, width);
+        }
+    }
+}
 
 let submitFunction = function(event: JQuery.KeyUpEvent) {
     if (event.keyCode === 13) {
@@ -20,6 +22,8 @@ let submitFunction = function(event: JQuery.KeyUpEvent) {
         const tree = jsonview.create(JSON.stringify(window.logger.getLog()));
         jsonview.render(tree, $(this).siblings('.output-container')[0]);
         jsonview.expand(tree);
+        collapseWideTrees(tree, 5);
+
         // Hide the useless root element
         $(this).siblings('.output-container').children('.json-container').children().first().addClass('hidden');
 
