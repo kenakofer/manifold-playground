@@ -18,7 +18,6 @@ let submitFunction = function(event: JQuery.KeyUpEvent) {
     if (event.keyCode === 13) {
         const command: string = $(this).val() as string;
         const output = executeCommand(command);
-        window.logger.log("Playground command result", output);
         const tree = jsonview.create(JSON.stringify(window.logger.getLog()));
         jsonview.render(tree, $(this).siblings('.output-container')[0]);
         jsonview.expand(tree);
@@ -57,25 +56,41 @@ declare global {
   }
 }
 
-window.logger = new NestedLogger();
+const commandsRequiringUser = [
+    'CREATE',
+    'BUY'
+]
+
 window.pState = new PlaygroundState();
 
-function getBalanceByUserId(users: User[]) {
-    // For each user in users, add an entry to the balanceByUserId dictionary
-    let balanceByUserId: { [key: string]: number } = {};
-    for (let user of users) {
-        balanceByUserId[user.id] = user.balance;
+let recentUserId: string | undefined = undefined;
+function getRecentUserId(): string {
+    if (!recentUserId) {
+        recentUserId = window.pState.getFirstUser().id;
     }
-    return balanceByUserId;
+    return recentUserId;
 }
 
+function executeCommand(command: string, userId?: string): any {
 
+    // New sets of logs to generate (Should we be saving past ones?)
+    window.logger = new NestedLogger();
 
-function executeCommand(command: string): any {
     // Split into tokens
     const tokens: string[] = command.split(' ');
-    // The first token is the command
-    const commandName: string = tokens[0];
+    if (tokens.length === 0) {
+        return;
+    }
+
+    const commandName: string = tokens[0].toUpperCase();
+    // Check if commandName in commandsRequiringUser and if userId is specified
+    if (commandsRequiringUser.includes(commandName) && !userId) {
+        window.logger.pLog("userId unspecified, using a default")
+        window.logger.in()
+        userId = getRecentUserId();
+        window.logger.out(0)
+    }
+
     // The rest of the tokens are the arguments
     const args: string[] = tokens.slice(1);
 
@@ -84,25 +99,33 @@ function executeCommand(command: string): any {
         // Use the defaults for now
         let market;
         try {
-            market = window.pState.addContractWithDefaultProps()
+            market = window.pState.addContractWithDefaultProps(userId, {})
+            return market;
         } catch (e) {
             console.log("Error creating contract");
-            window.logger.log(e.message, e.stack.split('\n'));
+            window.logger.pLog(e.message, e.stack.split('\n'));
             return e;
         }
-        return market;
     }
     if (commandName === 'BUY') {
-
-        // // This sets new liquidity and subsidy on the window.market (because of code I added in on-create-bet.ts)
-        // onCreateBet(window.result.newBet, window.market, bettor);
-
-        // // TODO where in manifold's code does it do this update (presumably to the DB, but still)?
-        // window.market.pool = window.result.newPool;
-        // window.market.p = window.result.newP;
-        // window.market.prob = window.result.newBet.probAfter;
-
-        // return window.result;
+        try {
+            const bet = window.pState.placeBetWithDefaultProps({}, userId, false);
+            return bet
+        } catch (e) {
+            console.log("Error placing bet");
+            window.logger.pLog(e.message, e.stack.split('\n'));
+            return e;
+        }
     }
-    return `Unknown command ${commandName}`;
+
+    // No commands matched. If we weren't passed a userId, rerun without the first token
+    if (!userId) {
+        userId = tokens[0];
+        window.logger.pLog(`Unknown command, parsing ${userId} as userId`)
+        const newCommand = args.join(' ');
+        return executeCommand(newCommand, userId);
+    } else {
+        console.error(`Unknown command ${commandName}`)
+        return window.logger.pLog(`Unknown command ${commandName}`)
+    }
 }
