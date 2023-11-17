@@ -99,6 +99,8 @@ function executeCommand(command: string, userId?: string): any {
         // Use the defaults for now
         let market;
         try {
+            if (!window.pState.getUser(userId)) window.pState.addUserWithDefaultProps({id: userId});
+            recentUserId = userId;
             market = window.pState.addContractWithDefaultProps(userId, {})
             return market;
         } catch (e) {
@@ -109,6 +111,8 @@ function executeCommand(command: string, userId?: string): any {
     }
     if (commandName === 'BUY') {
         try {
+            if (!window.pState.getUser(userId)) window.pState.addUserWithDefaultProps({id: userId});
+            recentUserId = userId;
             const bet = window.pState.placeBetWithDefaultProps({}, userId, false);
             return bet
         } catch (e) {
