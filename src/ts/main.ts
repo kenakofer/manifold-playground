@@ -17,7 +17,7 @@ let collapseWideTrees = function(tree: jsonview.TreeNode, width: number = 3) {
 let submitFunction = function(event: JQuery.KeyUpEvent) {
     if (event.keyCode === 13) {
         const command: string = $(this).val() as string;
-        const output = executeCommand(command);
+        const output = executeCommand(tokenize(command));
         const tree = jsonview.create(JSON.stringify(window.logger.getLog()));
         jsonview.render(tree, $(this).siblings('.output-container')[0]);
         jsonview.expand(tree);
@@ -63,6 +63,27 @@ const commandsRequiringUser = [
 
 window.pState = new PlaygroundState();
 
+function tokensToObject(tokens: string[]): any {
+    console.log(`Tokens: ${tokens}`);
+    const obj: any = {};
+    const isKey: boolean = true;
+    let key: string = '';
+    tokens.forEach((token: string) => {
+        if (key === '') {
+            // Interpret the next token as a key
+            if (token.includes(':')) throw new Error(`Bad colon placement`);
+            key = token;
+        } else {
+            // Interpret the next token as a value
+            if (token.includes(':')) return;
+            obj[key] = token;
+            key = '';
+        }
+    })
+    if (key !== '') throw new Error(`Missing value for key ${key}`);
+    return obj;
+}
+
 let recentUserId: string | undefined = undefined;
 function getRecentUserId(): string {
     if (!recentUserId) {
@@ -71,13 +92,68 @@ function getRecentUserId(): string {
     return recentUserId;
 }
 
-function executeCommand(command: string, userId?: string): any {
+
+function tokenize(command: string): string[] {
+    // Tokens are separated by spaces, commas, or colons (counts as a token)
+    // If there are double or single quotes, then the quotes are removed and the contents are a single token
+    // Remove all non-quoted whitespace, and all other characters that aren't quotes, spaces, commas, colons, or alphanumeric
+    let tokens: string[] = [];
+    let currentToken: string = '';
+    let inQuotes: boolean = false;
+    let inDoubleQuotes: boolean = false;
+    let pushToken = function() {
+        if (currentToken.length > 0) {
+            tokens.push(currentToken);
+            currentToken = '';
+        }
+    }
+    for (let i = 0; i < command.length; i++) {
+        const char = command[i];
+        if (char === ' ' || char === ',' || char === ':') {
+            if (!inQuotes && !inDoubleQuotes) {
+                pushToken();
+                if (char === ':') {
+                    tokens.push(':');
+                }
+                continue;
+            }
+        }
+        if (char === '"') {
+            if (inDoubleQuotes) {
+                pushToken();
+                inDoubleQuotes = false;
+                continue;
+            } else if (!inQuotes) {
+                pushToken();
+                inDoubleQuotes = true;
+                continue;
+            }
+        }
+        if (char === '\'') {
+            if (inQuotes) {
+                pushToken();
+                inQuotes = false;
+                continue;
+            } else if (!inDoubleQuotes) {
+                pushToken();
+                inQuotes = true;
+                continue;
+            }
+        }
+        currentToken += char;
+    }
+    if (currentToken.length > 0) {
+        tokens.push(currentToken);
+    }
+    return tokens;
+}
+
+function executeCommand(tokens: string[], userId?: string): any {
 
     // New sets of logs to generate (Should we be saving past ones?)
     window.logger = new NestedLogger();
 
     // Split into tokens
-    const tokens: string[] = command.split(' ');
     if (tokens.length === 0) {
         return;
     }
@@ -101,7 +177,8 @@ function executeCommand(command: string, userId?: string): any {
         try {
             if (!window.pState.getUser(userId)) window.pState.addUserWithDefaultProps({id: userId});
             recentUserId = userId;
-            market = window.pState.addContractWithDefaultProps(userId, {})
+            // Interpret args after the command
+            market = window.pState.addContractWithDefaultProps(userId, tokensToObject(args));
             return market;
         } catch (e) {
             console.log("Error creating contract");
@@ -126,8 +203,7 @@ function executeCommand(command: string, userId?: string): any {
     if (!userId) {
         userId = tokens[0];
         window.logger.pLog(`Unknown command, parsing ${userId} as userId`)
-        const newCommand = args.join(' ');
-        return executeCommand(newCommand, userId);
+        return executeCommand(tokens.slice(1), userId);
     } else {
         console.error(`Unknown command ${commandName}`)
         return window.logger.pLog(`Unknown command ${commandName}`)
