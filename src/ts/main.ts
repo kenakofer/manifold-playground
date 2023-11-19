@@ -3,7 +3,7 @@ import jsonview from '@pgrabovets/json-view';
 import { NestedLogger } from './lib/manifold/common/src/playground/nested-logger';
 import { PlaygroundState } from './lib/manifold/common/src/playground/playground-state';
 
-let collapseWideTrees = function(tree: jsonview.TreeNode, width: number = 3) {
+let collapseWideTrees = function(tree: jsonview.TreeNode, width: number = 4) {
     for (let i = 0; i < tree.children.length; i++) {
         const child = tree.children[i];
         if (child.children.length >= width) {
@@ -12,19 +12,26 @@ let collapseWideTrees = function(tree: jsonview.TreeNode, width: number = 3) {
             collapseWideTrees(child, width);
         }
     }
+
+    // Now iterate through all children and expand-in-data the thin ones
+    jsonview.traverse(tree, (node: jsonview.TreeNode) => {
+        if (node.children.length < width /*&& (!node.parent || node.parent.children.length < width+5)*/) {
+            node.isExpanded = true;
+        }
+    });
 }
 
 let submitFunction = function(event: JQuery.KeyUpEvent) {
     if (event.keyCode === 13) {
         const command: string = $(this).val() as string;
         const output = executeCommand(tokenize(command));
-        const tree = jsonview.create(JSON.stringify(window.logger.getLog()));
-        jsonview.render(tree, $(this).siblings('.output-container')[0]);
-        jsonview.expand(tree);
-        collapseWideTrees(tree, 5);
+        window.jsonlog = jsonview.create(JSON.stringify(window.logger.getLog()));
+        jsonview.render(window.jsonlog, $(this).siblings('.output-container')[0]);
+        jsonview.expand(window.jsonlog);
+        collapseWideTrees(window.jsonlog);
 
         // Hide the useless root element
-        $(this).siblings('.output-container').children('.json-container').children().first().addClass('hidden');
+        // $(this).siblings('.output-container').children('.json-container').children().first().addClass('hidden');
 
 
         // Create a new repl-container below, but only if we are the last repl-container
@@ -51,10 +58,14 @@ $('.command-input').on('keyup', submitFunction);
 
 declare global {
   interface Window {
+    jsonlog: any;
+    jsonview: jsonview;
     logger: NestedLogger;
     pState: PlaygroundState;
   }
 }
+
+window.jsonview = jsonview;
 
 const commandsRequiringUser = [
     'CREATE',
@@ -209,26 +220,3 @@ function executeCommand(tokens: string[], userId?: string): any {
         return window.logger.pLog(`Unknown command ${commandName}`)
     }
 }
-
-
-function augment(withFn) {
-    var name, fn;
-    // For each object that has been defined in this file
-    for (name in window) {
-        fn = window[name];
-        if (typeof fn === 'function') {
-            (window[name] as any) = (function(name, fn) {
-                var args = arguments;
-                return function() {
-                    withFn.apply(this, args);
-                    return fn.apply(this, arguments);
-
-                }
-            })(name, fn);
-        }
-    }
-}
-
-augment(function(name, fn) {
-    console.log("calling " + name);
-});
