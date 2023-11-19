@@ -21,21 +21,32 @@ let collapseWideTrees = function(tree: jsonview.TreeNode, width: number = 4) {
     });
 }
 
+let runBox = function(box: JQuery<any>) {
+    const command: string = box.find('.command-input').val() as string;
+
+    if (command === '') return;
+
+    const output = executeCommand(tokenize(command));
+    window.jsonlog = jsonview.create(JSON.stringify(window.logger.getLog()));
+    jsonview.render(window.jsonlog, box.find('.output-container')[0]);
+    jsonview.expand(window.jsonlog);
+    collapseWideTrees(window.jsonlog);
+    // Hide the useless root element
+    // box.find('.output-container').children('.json-container').children().first().addClass('hidden');
+}
+
 let submitFunction = function(event: JQuery.KeyUpEvent) {
     if (event.keyCode === 13) {
-        const command: string = $(this).val() as string;
-        const output = executeCommand(tokenize(command));
-        window.jsonlog = jsonview.create(JSON.stringify(window.logger.getLog()));
-        jsonview.render(window.jsonlog, $(this).siblings('.output-container')[0]);
-        jsonview.expand(window.jsonlog);
-        collapseWideTrees(window.jsonlog);
+        if (! $(this).parent().is(':last-child')) {
+            totalReset();
+            // For each of the .repl-containers in order, run the command
+            $(this).parent().parent().children('.repl-container').each(function() {
+                runBox($(this));
+            });
+        } else {
+            runBox($(this).parent());
 
-        // Hide the useless root element
-        // $(this).siblings('.output-container').children('.json-container').children().first().addClass('hidden');
-
-
-        // Create a new repl-container below, but only if we are the last repl-container
-        if ($(this).parent().is(':last-child')) {
+            // Create a new repl-container below, but only if we are the last repl-container
             const newReplContainer: JQuery<HTMLElement> = $('<div>').addClass('repl-container').html(`
                 <input type="text" class="command-input">
                 <div class="output-container"></div>
@@ -50,6 +61,17 @@ let submitFunction = function(event: JQuery.KeyUpEvent) {
             newCommandInput.on('keyup', submitFunction);
         }
     }
+}
+
+function totalReset() {
+    // Clear the state
+    window.pState = new PlaygroundState();
+    // Clear the log
+    window.logger = new NestedLogger();
+    // Delete every .json-container elements
+    $('.json-container').remove();
+    // Don't recall a recently used userId
+    recentUserId = undefined;
 }
 
 // When a input.command-input is submitted, execute the command
@@ -72,7 +94,6 @@ const commandsRequiringUser = [
     'BUY'
 ]
 
-window.pState = new PlaygroundState();
 
 function tokensToObject(tokens: string[]): any {
     console.log(`Tokens: ${tokens}`);
@@ -220,3 +241,8 @@ function executeCommand(tokens: string[], userId?: string): any {
         return window.logger.pLog(`Unknown command ${commandName}`)
     }
 }
+
+
+totalReset();
+// Focus the command input
+$('.command-input').focus();
