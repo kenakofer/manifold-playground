@@ -209,3 +209,26 @@ function executeCommand(tokens: string[], userId?: string): any {
         return window.logger.pLog(`Unknown command ${commandName}`)
     }
 }
+
+
+function augment(withFn) {
+    var name, fn;
+    // For each object that has been defined in this file
+    for (name in window) {
+        fn = window[name];
+        if (typeof fn === 'function') {
+            (window[name] as any) = (function(name, fn) {
+                var args = arguments;
+                return function() {
+                    withFn.apply(this, args);
+                    return fn.apply(this, arguments);
+
+                }
+            })(name, fn);
+        }
+    }
+}
+
+augment(function(name, fn) {
+    console.log("calling " + name);
+});
