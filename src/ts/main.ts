@@ -2,6 +2,7 @@ import { User } from './lib/manifold/common/src/user';
 import jsonview from '@pgrabovets/json-view';
 import { NestedLogger } from './lib/manifold/common/src/playground/nested-logger';
 import { PlaygroundState } from './lib/manifold/common/src/playground/playground-state';
+import { userToCard } from './create-card';
 
 let collapseWideTrees = function(tree: jsonview.TreeNode, width: number = 4) {
     for (let i = 0; i < tree.children.length; i++) {
@@ -60,6 +61,14 @@ let submitFunction = function(event: JQuery.KeyUpEvent) {
             // Add the submitFunction event listener to the new command input
             newCommandInput.on('keyup', submitFunction);
         }
+        $('.cards').empty();
+
+        // Add user cards to the left side
+        window.pState.getUsers().forEach((user: User) => {
+            $('.cards').append(userToCard(user));
+        });
+
+
     }
 }
 
