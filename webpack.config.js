@@ -2,7 +2,8 @@ const path = require('path');
 
 module.exports = {
   mode: 'development',
-  entry: './src/ts/main.ts',  // path to your main TypeScript file
+  devtool: 'source-map',
+  entry: './src/ts/main.ts',
   module: {
     rules: [
       {
@@ -16,7 +17,7 @@ module.exports = {
     extensions: ['.tsx', '.ts', '.js'],
   },
   output: {
-    filename: 'bundle.js',  // output bundle file
-    path: path.resolve(__dirname, 'docs', 'dist'),  // output directory
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist', 'js'),
   },
 };
