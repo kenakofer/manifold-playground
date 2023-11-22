@@ -1,0 +1,95 @@
+body {
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    display: flex;
+    justify-content: space-between;
+}
+
+.left-section {
+    flex: 1;
+    margin: 10px;
+    background-color: #f0f0f0;
+    padding: 20px;
+}
+
+.right-section {
+    flex: 1;
+    margin: 10px;
+    background-color: #f0f0f0;
+    padding: 20px;
+    line-break: anywhere;
+    /* the right section has its own vertical scroll bar, and is the height of the page */
+    overflow-y: scroll;
+    height: 87vh;
+}
+
+.repl-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.command-input {
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.submit-button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.output-container {
+    margin-bottom: 20px;
+}
+
+.playground-op {
+    color: #AAA;
+}
+
+.manifold-op {
+    color: #111;
+}
+
+.error-op {
+    color: red;
+}
+
+/* .json-key with no children */
+.json-key:empty::after {
+    color: red;
+}
+
+/* Cards should situate horizontally next to each other, then wrap to the next line */
+.card {
+    position: relative;
+    display: inline-block;
+    width: 100px;
+    height: 150px;
+    margin: 10px;
+    background-color: #f0f0f0;
+    padding: 20px;
+    line-break: anywhere;
+    border: 1px solid #AAA;
+}
+
+.card.contract-card {
+    background-color: #f0f0f0;
+    width: 180px;
+}
+
+/* Add a faint label to the top right of each card */
+.card-label {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 12px;
+    color: #AAA;
+    margin: 2px;
+}
+
+td {
+    padding: 5px;
+}
